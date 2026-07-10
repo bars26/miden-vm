@@ -2215,3 +2215,6 @@ mod tests {
 
 #[cfg(feature = "arbitrary")]
 mod arbitrary;
+
+#[cfg(test)]
+mod serialization_tests;
