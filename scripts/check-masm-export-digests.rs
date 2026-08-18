@@ -224,7 +224,7 @@ fn is_abi_attribute(name: &str) -> bool {
 /// the `name :` prefix from each struct field so such deltas compare equal.
 ///
 /// It deliberately preserves everything that *is* part of the ABI: field types, field count, field
-/// order, struct names, `repr` attributes (`@bigendian`, `@packed`, etc.), and all non-struct
+/// order, struct names, `repr` attributes (`@packed`, etc.), and all non-struct
 /// syntax. Only the leading `ident :` of a struct field is removed.
 fn canonicalize_type_string(value: &str) -> String {
     normalize(&strip_field_labels(value))
@@ -346,10 +346,7 @@ fn normalize(value: &str) -> String {
                 }
                 if brace_depth > 0 {
                     let next = if i < n { Some(chars[i]) } else { None };
-                    if has_newline
-                        && pending_field_sep
-                        && !matches!(next, None | Some('}' | ','))
-                    {
+                    if has_newline && pending_field_sep && !matches!(next, None | Some('}' | ',')) {
                         pass1.push(',');
                         pending_field_sep = false;
                     } else if !pass1.is_empty() && !pass1.ends_with(' ') {
@@ -408,8 +405,7 @@ mod tests {
 
     #[test]
     fn compare_exports_rejects_changed_procedure() {
-        let previous =
-            Exports::from([("existing_proc".to_string(), procedure("0x01"))]);
+        let previous = Exports::from([("existing_proc".to_string(), procedure("0x01"))]);
         let current = Exports::from([("existing_proc".to_string(), procedure("0x02"))]);
 
         assert!(compare_exports(previous, current).is_err());

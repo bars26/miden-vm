@@ -1,4 +1,5 @@
 # Changelog
+
 ## v0.30.0 (Unreleased)
 
 #### Features
@@ -31,6 +32,10 @@
 - Raised the minimum supported Plonky3 version to 0.6.3 to match the `num-bigint` 0.5 types used by `miden-field` ([#3569](https://github.com/0xMiden/miden-vm/pull/3569)).
 - [BREAKING] Moved the secp256k1 GLV endomorphism scalar decomposition from the ECDSA verifier's MASM/advice ABI into the precompiles prover's addition-chain strategy: `ecdsa_k256_keccak::verify` logs a plain `u1*G + u2*Q` claim, and the deferred prover satisfies it with a GLV-decomposed chain, certified in-circuit ([#3426](https://github.com/0xMiden/miden-vm/pull/3426)).
 - Made `Mmr::clone()` cheap by storing MMR nodes in chunked, `Arc`-shared storage. Clones share all chunk storage with the original; appending after a clone copies at most one 32 KiB chunk. Public API and serialization formats are unchanged. ([#3562](https://github.com/0xMiden/miden-vm/pull/3562)).
+- [BREAKING] `midenc_hir_type::CallConv` is now marked `#[non_exhaustive]`, and has gained a new variant `Extern`, for language frontends to use for representing their own internal calling conventions.
+- [BREAKING] `midenc_hir_type::Type` has gained a new variant: `Variadic`, for use in representing function signatures that have variadic parameter or result lists.
+- The `List` variant of `midenc_hir_type::Type` has had its representation defined as a fat pointer, i.e. `{ len: u32, ptr: *T }`, and so it is now supported in APIs that previously would panic due to the representation being unspecified. `List` is now emitted into debug info as an array with no fixed element count, which is what debug type recovery expects, so lists round-trip through package debug info; previously they were emitted as a synthetic `{ ptr, len }` struct and recovered as an ordinary struct. Structs with a `List`-typed field are now recoverable at all, where recovery previously failed outright because a list was treated as having no computable size.
+- [BREAKING] `midenc_hir_type::StructType` now rejects structs with more than 255 fields. 256 fields were previously constructible, but the field count is encoded as a `u8`, so such a struct silently serialized as having zero fields.
 
 #### Features
 
