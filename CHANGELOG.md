@@ -8,6 +8,7 @@
 - Added `Mmr::nodes_from(start)`, returning the MMR's nodes at indices `start..` in insertion (postorder) order ([#3585](https://github.com/0xMiden/miden-vm/pull/3585)).
 - [BREAKING] Added `Mmr::from_nodes_unchecked(forest, nodes)`, constructing an MMR from its complete postorder node array without recomputing hashes ([#3585](https://github.com/0xMiden/miden-vm/pull/3585)).
 - `midenc_hir_type` now supports self-recursive and mutually recursive struct and enum types, e.g. `struct Node { next: *Node }`. Recursion must cross a pointer, list, or function, so that every layout stays finite; more precisely, every cycle in the type reference graph must cross one of those. A recursive `Type` carries its whole definition group by `Arc`, so it remains self-contained: no interning table, definition registry, or context object is needed to interpret one, and descending through a backedge yields a type equal to the definition it points at.
+- Miden Assembly signatures can now declare a variadic type parameter with `...`, in either argument or result position, e.g. `pub proc log(prefix: felt, ...)` or `pub proc f() -> (count: u32, ...)`. It must come last in its list and may appear at most once, matching the rules documented on `midenc_hir_type::Type::Variadic`, and it is only accepted in a signature, not as an ordinary type.
 - Recursive struct and enum types can now be declared in Miden Assembly, e.g. `type Node = struct { value: u32, next: ptr<Node, addrspace(byte)> }`, including mutually recursive declarations. Recursion must cross a pointer type. 
 
 #### Changes
