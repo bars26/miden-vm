@@ -3,6 +3,7 @@
 
 #### Features
 
+- The assembler now warns about `const.NAME = ..` declarations that are never referenced locally and are not exported, mirroring the existing unused-import warning ([#2898](https://github.com/0xMiden/miden-vm/issues/2898)).
 - [BREAKING] Added inline call-chain metadata to package source maps so debuggers can reconstruct inlined stack frames, and preserved source-node context during stepped execution. This extends public assembly instruction and processor continuation enums, so downstream exhaustive matches must handle the new debug metadata ([#3427](https://github.com/0xMiden/miden-vm/pull/3427)).
 - [BREAKING] Replaced source-specific and opaque debug variable locations with explicit unavailable
   locations, tagged Miden frame bases, and bounded structured Miden-runtime expressions. This bumps

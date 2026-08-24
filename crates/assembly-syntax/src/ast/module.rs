@@ -474,6 +474,7 @@ impl Module {
                 visibility: alias.visibility(),
                 name,
                 value: discriminant,
+                uses: 0,
             })?;
         }
 

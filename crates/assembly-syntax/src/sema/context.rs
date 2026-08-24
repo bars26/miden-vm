@@ -17,6 +17,10 @@ use crate::ast::{
 /// This maintains the state for semantic analysis of a single [Module].
 pub struct AnalysisContext {
     constants: BTreeMap<Ident, Constant>,
+    /// Names of constants defined directly via `const.NAME = ..` source declarations, as opposed
+    /// to constants registered internally (e.g. enum variant discriminants). Only these are
+    /// eligible for the unused-constant warning.
+    explicit_constants: BTreeSet<Ident>,
     cached_constant_values: BTreeMap<Ident, ConstantValue>,
     imported: BTreeSet<Ident>,
     procedures: BTreeSet<ProcedureName>,
@@ -38,6 +42,7 @@ impl constants::ConstEnvironment for AnalysisContext {
     }
     #[inline]
     fn get(&mut self, name: &Ident) -> Result<Option<CachedConstantValue<'_>>, Self::Error> {
+        self.mark_constant_used(name);
         if let Some(value) = self.cached_constant_values.get(name) {
             Ok(Some(CachedConstantValue::Hit(value)))
         } else if let Some(constant) = self.constants.get(name) {
@@ -82,6 +87,7 @@ impl AnalysisContext {
     pub fn new(source_file: Arc<SourceFile>, source_manager: Arc<dyn SourceManager>) -> Self {
         Self {
             constants: Default::default(),
+            explicit_constants: Default::default(),
             cached_constant_values: Default::default(),
             imported: Default::default(),
             procedures: Default::default(),
@@ -122,6 +128,7 @@ impl AnalysisContext {
             self.errors.push(err);
         } else {
             let name = constant.name.clone();
+            self.explicit_constants.insert(name.clone());
             self.constants.insert(name, constant);
         }
     }
@@ -149,10 +156,12 @@ impl AnalysisContext {
         let constants = self.constants.keys().cloned().collect::<Vec<_>>();
 
         for constant in constants.iter() {
-            let expr = ConstantExpr::Var(Span::new(
-                constant.span(),
-                PathBuf::from(constant.clone()).into(),
-            ));
+            // Evaluate the constant's own definition directly, rather than through a synthetic
+            // self-referencing `Var`, so that folding a constant's own definition is not itself
+            // counted as a "use" of that constant (see `Constant::is_used`/`unused_constants`).
+            // Any *other* constants referenced from within this definition are still resolved via
+            // `ConstEnvironment::get`, and are correctly counted as used.
+            let expr = self.constants.get(constant).unwrap().value.clone();
             match constants::eval::expr(&expr, self) {
                 Ok(value) => {
                     if let Some(cached) = value.as_value() {
@@ -167,6 +176,26 @@ impl AnalysisContext {
                 },
             }
         }
+    }
+
+    /// Marks the constant named `name` as used, if it refers to a constant defined in this
+    /// module. This is a no-op for names that do not resolve to a locally-defined constant.
+    fn mark_constant_used(&mut self, name: &Ident) {
+        if let Some(constant) = self.constants.get_mut(name) {
+            constant.uses += 1;
+        }
+    }
+
+    /// Returns an iterator over source-level `const.NAME = ..` declarations in this module which
+    /// were never referenced (and are not exported).
+    ///
+    /// This excludes constants that are registered internally, such as enum variant
+    /// discriminants, since those are not user-authored constant declarations.
+    pub fn unused_constants(&self) -> impl Iterator<Item = &Constant> {
+        self.explicit_constants
+            .iter()
+            .filter_map(|name| self.constants.get(name))
+            .filter(|constant| !constant.is_used())
     }
 
     /// Get the evaluated constant expression bound to `name`.

@@ -30,6 +30,8 @@ pub struct Constant {
     pub name: Ident,
     /// The expression associated with the constant.
     pub value: ConstantExpr,
+    /// The number of times this constant has been referenced locally.
+    pub uses: usize,
 }
 
 impl Constant {
@@ -41,6 +43,7 @@ impl Constant {
             visibility,
             name,
             value,
+            uses: 0,
         }
     }
 
@@ -58,6 +61,12 @@ impl Constant {
     /// Get the name of this constant
     pub fn name(&self) -> &Ident {
         &self.name
+    }
+
+    /// Returns true if this constant has at least one use in its containing module, or is
+    /// exported and thus may be used by other modules.
+    pub fn is_used(&self) -> bool {
+        self.uses > 0 || self.visibility.is_public()
     }
 }
 

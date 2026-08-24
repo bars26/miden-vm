@@ -142,6 +142,7 @@ pub fn analyze(
                         visibility: ty.visibility(),
                         name: name.clone(),
                         value: discriminant.clone(),
+                        uses: 0,
                     });
                 }
 
@@ -274,6 +275,15 @@ pub fn analyze(
         if !import.is_used() {
             analyzer.error(SemanticAnalysisError::UnusedImport { span: import.unused_span() });
         }
+    }
+
+    // Check unused constants
+    let unused_constant_spans = analyzer
+        .unused_constants()
+        .map(|constant| constant.name().span())
+        .collect::<Vec<_>>();
+    for span in unused_constant_spans {
+        analyzer.error(SemanticAnalysisError::UnusedConstant { span });
     }
 
     analyzer.into_result().map(move |_| module)

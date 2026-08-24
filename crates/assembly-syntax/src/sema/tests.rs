@@ -105,6 +105,24 @@ fn unused_import_slices(error: &miden_utils_diagnostics::Report) -> Vec<String> 
         .collect()
 }
 
+fn unused_constant_slices(error: &miden_utils_diagnostics::Report) -> Vec<String> {
+    let syntax_error = syntax_error(error);
+    syntax_error
+        .errors
+        .iter()
+        .filter_map(|err| match err {
+            SemanticAnalysisError::UnusedConstant { span } => Some(
+                syntax_error
+                    .source_file
+                    .source_slice(*span)
+                    .expect("unused constant span should be valid")
+                    .to_string(),
+            ),
+            _ => None,
+        })
+        .collect()
+}
+
 fn assert_import(module: &Module, name: &str, kind: ImportKind, used: bool) {
     let import = module
         .imports()
@@ -836,6 +854,84 @@ end
         .expect_err("only unused grouped item imports should warn");
 
     assert_eq!(unused_import_slices(&error), vec!["baz"]);
+}
+
+#[test]
+fn sema_const_unused_local_constant_warns_on_name_span() {
+    let context = SyntaxTestContext::new().with_warnings_as_errors(true);
+    let error = context
+        .parse_program(
+            "
+const UNUSED_CONST = 1
+begin
+    nop
+end
+",
+        )
+        .expect_err("unused constant should warn");
+
+    assert_eq!(unused_constant_slices(&error), vec!["UNUSED_CONST"]);
+}
+
+#[test]
+fn sema_const_constant_used_in_immediate_suppresses_warning() {
+    let context = SyntaxTestContext::new().with_warnings_as_errors(true);
+    context
+        .parse_program(
+            "
+const VALUE = 1
+begin
+    push.VALUE
+end
+",
+        )
+        .expect("constant referenced by an immediate must not be flagged as unused");
+}
+
+#[test]
+fn sema_const_constant_used_by_another_constant_suppresses_warning() {
+    let context = SyntaxTestContext::new().with_warnings_as_errors(true);
+    context
+        .parse_program(
+            "
+const BASE = 1
+const DERIVED = BASE + 1
+begin
+    push.DERIVED
+end
+",
+        )
+        .expect("a constant referenced from another constant's definition must not be flagged as unused");
+}
+
+#[test]
+fn sema_const_exported_constant_suppresses_warning() {
+    let context = SyntaxTestContext::new().with_warnings_as_errors(true);
+    context
+        .parse_module(
+            "
+namespace test
+pub const EXPORTED = 1
+",
+        )
+        .expect("exported constants must not be flagged as unused");
+}
+
+#[test]
+fn sema_const_enum_variants_are_not_flagged_as_unused_constants() {
+    let context = SyntaxTestContext::new().with_warnings_as_errors(true);
+    context
+        .parse_module(
+            "
+namespace test
+enum Color : u8 {
+    RED,
+    GREEN,
+    BLUE,
+}
+",
+        )
+        .expect("enum variant discriminants must not be flagged as unused constants");
 }
 
 #[test]
